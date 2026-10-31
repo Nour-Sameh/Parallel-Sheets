@@ -1,67 +1,70 @@
-#include <iostream>
+
+#include <bits/stdc++.h>
 #include <pthread.h>
+#include <stdint.h>
 using namespace std;
 
-const int ThreadNo = 2;
-
 int n;
-int arr[100];
+const int th_num = 2;
 
-int EvenArr[100];
-int OddArr[100];
+long long arr[100];
+long long EvenArr[101], OddArr[101];
 
-int evenIndex = 0;
-int oddIndex = 0;
+long long even = 0, odd = 0;
 
-pthread_mutex_t myMutex;
+pthread_mutex_t mux = PTHREAD_MUTEX_INITIALIZER;
 
-void* countDigits(void* arg) {
-    int ThreadID = (long long)arg;
+void* calc(void* args)
+{
+    int id = (intptr_t)args;
 
-    int start = ThreadID * n / ThreadNo;
-    int end = (ThreadID + 1) * n / ThreadNo;
+    int st = id * n / th_num;
+    int ed = (id + 1) * n / th_num;
 
-    int even[100], odd[100];
-    int ec = 0, oc = 0;
+    long long localEven = 0;
+    long long localOdd = 0;
 
-    for (int i = start; i < end; i++) {
-        int num = arr[i];
+    for (int i = st; i < ed; i++)
+    {
+        long long x = arr[i];
 
-        if (num == 0) {
-            even[ec++] = 0;
-        }
+        int e = 0, o = 0;
 
-        while (num > 0) {
-            int digit = num % 10;
+        do
+        {
+            int digit = x % 10;
 
             if (digit % 2 == 0)
-                even[ec++] = digit;
+            {
+                e++;
+                localEven += digit;
+            }
             else
-                odd[oc++] = digit;
+            {
+                o++;
+                localOdd += digit;
+            }
 
-            num /= 10;
-        }
+            x /= 10;
+
+        } while (x > 0);
+
+        EvenArr[i] = e;
+        OddArr[i] = o;
     }
 
-    pthread_mutex_lock(&myMutex);
+    pthread_mutex_lock(&mux);
 
-    for (int i = 0; i < ec; i++)
-        EvenArr[evenIndex++] = even[i];
+    even += localEven;
+    odd += localOdd;
 
-    for (int i = 0; i < oc; i++)
-        OddArr[oddIndex++] = odd[i];
+    pthread_mutex_unlock(&mux);
 
-    pthread_mutex_unlock(&myMutex);
-
-    pthread_exit(NULL);
     return NULL;
 }
 
-int main() {
-    pthread_t mythread[ThreadNo];
-
-    pthread_mutex_init(&myMutex, NULL);
-
+int main()
+{
     cout << "Enter array size: ";
     cin >> n;
 
@@ -70,38 +73,24 @@ int main() {
     for (int i = 0; i < n; i++)
         cin >> arr[i];
 
-    for (int i = 0; i < ThreadNo; i++) {
-        pthread_create(&mythread[i], NULL, countDigits,(void*)(long long)i);
-    }
+    pthread_t th[th_num];
 
-    for (int i = 0; i < ThreadNo; i++)
-        pthread_join(mythread[i], NULL);
+    for (int i = 0; i < th_num; i++)
+        pthread_create(&th[i], NULL, calc, (void*)(intptr_t)i);
 
-    int evenSum = 0;
-    int oddSum = 0;
+    for (int i = 0; i < th_num; i++)
+        pthread_join(th[i], NULL);
 
-    for (int i = 0; i < evenIndex; i++)
-        evenSum += EvenArr[i];
+    EvenArr[n] = even;
+    OddArr[n] = odd;
 
-    for (int i = 0; i < oddIndex; i++)
-        oddSum += OddArr[i];
-
-    EvenArr[evenIndex] = evenSum;
-    OddArr[oddIndex] = oddSum;
-
-    cout << "EvenArr: ";
-
-    for (int i = 0; i <= evenIndex; i++)
+    cout << "\nEvenArr: ";
+    for (int i = 0; i <= n; i++)
         cout << EvenArr[i] << " ";
 
     cout << "\nOddArr: ";
-
-    for (int i = 0; i <= oddIndex; i++)
+    for (int i = 0; i <= n; i++)
         cout << OddArr[i] << " ";
-
-    cout << endl;
-
-    pthread_mutex_destroy(&myMutex);
 
     return 0;
 }
